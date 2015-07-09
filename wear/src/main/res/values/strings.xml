@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">TVening</string>
+
+    <dimen name="card_content_padding_rect_left">4dp</dimen>
+    <dimen name="card_content_padding_rect_right">4dp</dimen>
+    <dimen name="card_content_padding_rect_top">16dp</dimen>
+
+    <style name="CardContent">
+        <item name="android:paddingLeft">@dimen/card_content_padding_rect_left</item>
+        <item name="android:paddingRight">@dimen/card_content_padding_rect_right</item>
+        <item name="android:paddingTop">@dimen/card_content_padding_rect_top</item>
+    </style>
+</resources>
