@@ -1,7 +1,7 @@
 package fr.clakech.tvening;
 
-public final class SIWSyncCommons {
-    private SIWSyncCommons() {
+public final class TVCommons {
+    private TVCommons() {
         //no-op
     }
 

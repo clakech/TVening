@@ -16,7 +16,7 @@ public class MyCardFragment extends CardFragment {
     @Override
     public View onCreateContentView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        fragmentView = inflater.inflate(R.layout.watch_card_content2, container, false);
+        fragmentView = inflater.inflate(R.layout.watch_card_content, container, false);
 
         fragmentView.setOnClickListener(view -> {
             if (listener != null) {

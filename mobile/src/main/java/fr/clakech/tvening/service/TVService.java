@@ -15,11 +15,13 @@ import com.nostra13.universalimageloader.core.assist.FailReason;
 import com.nostra13.universalimageloader.core.assist.ImageSize;
 import com.nostra13.universalimageloader.core.download.BaseImageDownloader;
 import com.nostra13.universalimageloader.core.listener.SimpleImageLoadingListener;
+
 import fr.clakech.tvening.Airing;
 import fr.clakech.tvening.GridChannel;
 import fr.clakech.tvening.ProgramImage;
 import fr.clakech.tvening.ProgramResult;
-import fr.clakech.tvening.SIWSyncCommons;
+import fr.clakech.tvening.PropertyReader;
+import fr.clakech.tvening.TVCommons;
 import fr.clakech.tvening.api.TVApi;
 
 import java.io.ByteArrayOutputStream;
@@ -29,6 +31,8 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Properties;
 import java.util.Set;
 import java.util.SimpleTimeZone;
 
@@ -41,10 +45,16 @@ import rx.schedulers.Schedulers;
 public class TVService extends TeleportService {
 
     private TVApi tvApi;
+    private Locale locale;
+    private String defaultService;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        locale = getResources().getConfiguration().locale;
+        PropertyReader propertyReader = new PropertyReader(this);
+        Properties properties = propertyReader.getMyProperties("countrydefaultservice.properties");
+        defaultService = properties.getProperty(locale.getCountry());
 
         ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(this)
                 .imageDownloader(new BaseImageDownloader(this, 5 * 1000, 5 * 1000))
@@ -78,8 +88,11 @@ public class TVService extends TeleportService {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         sdf.setTimeZone(new SimpleTimeZone(SimpleTimeZone.UTC_TIME, "UTC"));
         String startDate = sdf.format(Calendar.getInstance().getTime()) + "T19:00:00Z";
+        String localeForRovi = locale.getLanguage() + "-" + locale.getCountry();
+        String service = defaultService != null ? defaultService : TVApi.DEFAULT_SERVICE;
+        String urlSchedule = "http://api.rovicorp.com/TVlistings/v9/listings/gridschedule/" + service + "/info";
 
-        Observable<List<GridChannel>> scheduleObservable = tvApi.getSchedule(TVApi.GRID_SCHEDULE_URL, startDate)
+        Observable<List<GridChannel>> scheduleObservable = tvApi.getSchedule(urlSchedule, startDate, localeForRovi)
                 .flatMap(schedule -> Observable.from(Arrays.asList(schedule.GridScheduleResult.GridChannels)))
                 .take(10)
                 .flatMap(gridChannel -> {
@@ -88,7 +101,7 @@ public class TVService extends TeleportService {
                     Observable<List<Airing>> listAiring = Observable.from(listAllAirings)
                             .flatMap(airing -> {
                                 String urlProgram = "http://api.rovicorp.com/TVlistings/v9/listings/programdetails/" + airing.ProgramId + "/info";
-                                Observable<ProgramResult> programObs = tvApi.getProgram(urlProgram);
+                                Observable<ProgramResult> programObs = tvApi.getProgram(urlProgram, localeForRovi);
 
                                 // pfff, to avoid API limitation of 5 hits / sec
                                 try {
@@ -133,7 +146,7 @@ public class TVService extends TeleportService {
                 })
                 .subscribe(listGridChannel -> {
 
-                    final PutDataMapRequest putDataMapReq = PutDataMapRequest.create(SIWSyncCommons.PATH_TVENING);
+                    final PutDataMapRequest putDataMapReq = PutDataMapRequest.create(TVCommons.PATH_TVENING);
                     Set<String> imgUrlProgramIds = new HashSet<>();
                     Set<String> imgUrlChannels = new HashSet<>();
 
@@ -142,7 +155,7 @@ public class TVService extends TeleportService {
                     Log.d("TV", "listGridChannel: " + listGridChannel);
 
                     if (listGridChannel.isEmpty()) {
-                        syncBoolean(SIWSyncCommons.KEY_SCHEDULE_ERROR, true);
+                        syncBoolean(TVCommons.KEY_SCHEDULE_ERROR, true);
                     }
 
                     for (GridChannel gridChannel : listGridChannel) {
@@ -179,14 +192,14 @@ public class TVService extends TeleportService {
 
                     }
 
-                    putDataMapReq.getDataMap().putDataMapArrayList(SIWSyncCommons.KEY_SCHEDULE, scheduleDataMap);
+                    putDataMapReq.getDataMap().putDataMapArrayList(TVCommons.KEY_SCHEDULE, scheduleDataMap);
                     putDataMapReq.getDataMap().putLong("timestamp", System.currentTimeMillis());
                     syncDataItem(putDataMapReq);
 
                     int count = imgUrlProgramIds.size() + imgUrlChannels.size();
-                    PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(SIWSyncCommons.PATH_TVENING_IMAGE_COUNT);
+                    PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(TVCommons.PATH_TVENING_IMAGE_COUNT);
                     putDataMapRequest.getDataMap().putLong("timestamp", System.currentTimeMillis());
-                    putDataMapRequest.getDataMap().putInt(SIWSyncCommons.KEY_IMAGE_COUNT, count);
+                    putDataMapRequest.getDataMap().putInt(TVCommons.KEY_IMAGE_COUNT, count);
                     syncDataItem(putDataMapRequest);
 
                     for (String urlProgramId : imgUrlProgramIds) {
@@ -211,11 +224,11 @@ public class TVService extends TeleportService {
                 if (loadedImage != null) {
                     Asset asset = createAssetFromBitmap(loadedImage);
 
-                    final PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(SIWSyncCommons.PATH_TVENING_IMAGE + imgUrl);
+                    final PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(TVCommons.PATH_TVENING_IMAGE + imgUrl);
                     putDataMapRequest.getDataMap().putLong("timestamp", System.currentTimeMillis());
                     putDataMapRequest.getDataMap().putAsset("image", asset);
                     putDataMapRequest.getDataMap().putString("key", imgUrl);
-                    putDataMapRequest.getDataMap().putString(SIWSyncCommons.KEY_IMAGE, SIWSyncCommons.KEY_IMAGE);
+                    putDataMapRequest.getDataMap().putString(TVCommons.KEY_IMAGE, TVCommons.KEY_IMAGE);
 
 
                     syncDataItem(putDataMapRequest);
@@ -233,12 +246,12 @@ public class TVService extends TeleportService {
             private void failLoadImage(FailReason failReason) {
                 Log.w("TV", "failed to loaded Image:" + imgUrl + " " + failReason);
 
-                final PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(SIWSyncCommons.PATH_TVENING_IMAGE + imgUrl);
+                final PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(TVCommons.PATH_TVENING_IMAGE + imgUrl);
                 putDataMapRequest.getDataMap().putLong("timestamp", System.currentTimeMillis());
                 putDataMapRequest.getDataMap().putString("key", imgUrl);
                 putDataMapRequest.getDataMap().putAsset("image", null);
-                putDataMapRequest.getDataMap().putString(SIWSyncCommons.KEY_IMAGE, SIWSyncCommons.KEY_IMAGE);
-                putDataMapRequest.getDataMap().putString(SIWSyncCommons.KEY_SCHEDULE_ERROR, SIWSyncCommons.KEY_SCHEDULE_ERROR);
+                putDataMapRequest.getDataMap().putString(TVCommons.KEY_IMAGE, TVCommons.KEY_IMAGE);
+                putDataMapRequest.getDataMap().putString(TVCommons.KEY_SCHEDULE_ERROR, TVCommons.KEY_SCHEDULE_ERROR);
                 syncDataItem(putDataMapRequest);
             }
 

@@ -83,10 +83,10 @@ public class MainActivity extends Activity {
         protected void onPostExecute(DataMap dataMap) {
             Log.d("TV", "dataMap:" + dataMap);
 
-            if (dataMap.containsKey(SIWSyncCommons.KEY_SCHEDULE)) {
+            if (dataMap.containsKey(TVCommons.KEY_SCHEDULE)) {
                 gridChannels = new ArrayList<>();
 
-                List<DataMap> gridChannelsDataMap = dataMap.getDataMapArrayList(SIWSyncCommons.KEY_SCHEDULE);
+                List<DataMap> gridChannelsDataMap = dataMap.getDataMapArrayList(TVCommons.KEY_SCHEDULE);
 
                 Log.d("TV", "gridChannelsDataMap:" + gridChannelsDataMap);
 
@@ -120,18 +120,18 @@ public class MainActivity extends Activity {
                     gridChannels.add(gridChannel);
                 }
 
-            } else if (dataMap.containsKey(SIWSyncCommons.KEY_IMAGE)) {
+            } else if (dataMap.containsKey(TVCommons.KEY_IMAGE)) {
                 Asset image = dataMap.getAsset("image");
                 String keyValue = dataMap.getString("key");
 
                 Log.d("TV", "image:" + image);
-                if (dataMap.containsKey(SIWSyncCommons.KEY_SCHEDULE_ERROR)) {
+                if (dataMap.containsKey(TVCommons.KEY_SCHEDULE_ERROR)) {
                     putInCache(keyValue, new ColorDrawable(Color.TRANSPARENT));
                 } else {
                     new LoadImage(keyValue).execute(image, teleportClient.getGoogleApiClient());
                 }
-            } else if (dataMap.containsKey(SIWSyncCommons.KEY_IMAGE_COUNT)) {
-                int max = dataMap.getInt(SIWSyncCommons.KEY_IMAGE_COUNT);
+            } else if (dataMap.containsKey(TVCommons.KEY_IMAGE_COUNT)) {
+                int max = dataMap.getInt(TVCommons.KEY_IMAGE_COUNT);
                 Log.d("TV", "KEY_IMAGE_COUNT:" + max);
                 DrawableCache.init(max);
             }
