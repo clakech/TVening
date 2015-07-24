@@ -218,7 +218,10 @@ public class TVService extends TeleportService {
 
         ImageSize targetSize = new ImageSize(size, size);
 
-        ImageLoader.getInstance().loadImage(imgUrl, targetSize, new SimpleImageLoadingListener() {
+        String[] splitted = imgUrl.split("\\?");
+        String proxyImgUrl = TVApi.ENDPOINT + "/?" + splitted[1] + "&$url=" + splitted[0];
+
+        ImageLoader.getInstance().loadImage(proxyImgUrl, targetSize, new SimpleImageLoadingListener() {
             @Override
             public void onLoadingComplete(String imageUri, View view, Bitmap loadedImage) {
                 if (loadedImage != null) {
@@ -229,8 +232,6 @@ public class TVService extends TeleportService {
                     putDataMapRequest.getDataMap().putAsset("image", asset);
                     putDataMapRequest.getDataMap().putString("key", imgUrl);
                     putDataMapRequest.getDataMap().putString(TVCommons.KEY_IMAGE, TVCommons.KEY_IMAGE);
-
-
                     syncDataItem(putDataMapRequest);
                 } else {
                     Log.w("TV", "loadedImage is null:" + imgUrl);
