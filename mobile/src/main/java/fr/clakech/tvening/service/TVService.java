@@ -47,14 +47,19 @@ public class TVService extends TeleportService {
     private TVApi tvApi;
     private Locale locale;
     private String defaultService;
+    private Set<String> imgUrls;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        Log.d("TV", "TVService onCreate");
+
         locale = getResources().getConfiguration().locale;
         PropertyReader propertyReader = new PropertyReader(this);
         Properties properties = propertyReader.getMyProperties("countrydefaultservice.properties");
         defaultService = properties.getProperty(locale.getCountry());
+
+        imgUrls = new HashSet<>();
 
         ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(this)
                 .imageDownloader(new BaseImageDownloader(this, 5 * 1000, 5 * 1000))
@@ -71,7 +76,6 @@ public class TVService extends TeleportService {
                 .build()
                 .create(TVApi.class);
 
-
         setOnGetMessageTaskBuilder(
                 new OnGetMessageTask.Builder() {
                     @Override
@@ -83,7 +87,10 @@ public class TVService extends TeleportService {
 
     }
 
-    public void getSchedule() {
+    public void getSchedule(final int currentIndex) {
+
+        Log.d("TV", "getSchedule:" + currentIndex);
+        Log.d("TV", "imgUrls:" + imgUrls);
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         sdf.setTimeZone(new SimpleTimeZone(SimpleTimeZone.UTC_TIME, "UTC"));
@@ -94,7 +101,8 @@ public class TVService extends TeleportService {
 
         Observable<List<GridChannel>> scheduleObservable = tvApi.getSchedule(urlSchedule, startDate, localeForRovi)
                 .flatMap(schedule -> Observable.from(Arrays.asList(schedule.GridScheduleResult.GridChannels)))
-                .take(10)
+                .skip(currentIndex)
+                .take(6)
                 .flatMap(gridChannel -> {
 
                     List<Airing> listAllAirings = Arrays.asList(gridChannel.Airings);
@@ -153,6 +161,7 @@ public class TVService extends TeleportService {
                     final ArrayList<DataMap> scheduleDataMap = new ArrayList<>();
 
                     Log.d("TV", "listGridChannel: " + listGridChannel);
+                    Log.d("TV", "listGridChannel.size: " + listGridChannel.size());
 
                     if (listGridChannel.isEmpty()) {
                         syncBoolean(TVCommons.KEY_SCHEDULE_ERROR, true);
@@ -193,10 +202,17 @@ public class TVService extends TeleportService {
                     }
 
                     putDataMapReq.getDataMap().putDataMapArrayList(TVCommons.KEY_SCHEDULE, scheduleDataMap);
+                    putDataMapReq.getDataMap().putInt(TVCommons.KEY_CURRENT_INDEX, currentIndex);
                     putDataMapReq.getDataMap().putLong("timestamp", System.currentTimeMillis());
                     syncDataItem(putDataMapReq);
 
-                    int count = imgUrlProgramIds.size() + imgUrlChannels.size();
+                    int count = imgUrls.size();
+                    Log.d("TV", "Image urls size before:" + count);
+                    imgUrls.addAll(imgUrlChannels);
+                    imgUrls.addAll(imgUrlProgramIds);
+                    count = imgUrls.size() - count;
+                    Log.d("TV", "Image urls size after:" + imgUrls.size());
+                    Log.d("TV", "Image NEW count:" + count);
                     PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(TVCommons.PATH_TVENING_IMAGE_COUNT);
                     putDataMapRequest.getDataMap().putLong("timestamp", System.currentTimeMillis());
                     putDataMapRequest.getDataMap().putInt(TVCommons.KEY_IMAGE_COUNT, count);
@@ -274,8 +290,12 @@ public class TVService extends TeleportService {
 
         @Override
         protected void onPostExecute(String path) {
+            Log.d("TV", "message:" + path);
             if (path.equals("bonjour")) {
-                new Thread(() -> getSchedule()).start();
+                new Thread(() -> getSchedule(0)).start();
+            } else if (path.startsWith("nextPlease")) {
+                int index = Integer.parseInt(path.split("-")[1]);
+                new Thread(() -> getSchedule(index)).start();
             }
         }
     }

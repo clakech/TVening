@@ -1,12 +1,14 @@
 package fr.clakech.tvening;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.support.wearable.activity.ConfirmationActivity;
 import android.support.wearable.view.DotsPageIndicator;
 import android.support.wearable.view.GridViewPager;
 import android.util.Log;
@@ -21,16 +23,19 @@ import java.util.List;
 
 public class MainActivity extends Activity {
 
+    public static final int PAGINATION = 6;
     private GridViewPager pager;
     private DotsPageIndicator dotsPageIndicator;
-
+    private ScheduleGridPagerAdapter adapter;
     private List<GridChannel> gridChannels;
 
     private TeleportClient teleportClient;
+    private int lastIndex;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        lastIndex = 0;
         setContentView(R.layout.activity_main);
         pager = (GridViewPager) findViewById(R.id.pager);
         dotsPageIndicator = (DotsPageIndicator) findViewById(R.id.page_indicator);
@@ -64,13 +69,30 @@ public class MainActivity extends Activity {
     }
 
     public void startMainScreen() {
-        Log.d("TV", "startMainScreen!");
+        Log.d("TV", "startMainScreen - lastIndex:" + lastIndex + " gridChannels:" + gridChannels.size());
 
         runOnUiThread(() -> {
             findViewById(R.id.textView).setVisibility(View.INVISIBLE);
+            ActionFragment.Listener listener = () -> {
+                teleportClient.sendMessage("nextPlease-" + (lastIndex + PAGINATION), null);
+                Intent intent = new Intent(this, ConfirmationActivity.class);
+                intent.putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE,
+                        ConfirmationActivity.SUCCESS_ANIMATION);
+                intent.putExtra(ConfirmationActivity.EXTRA_MESSAGE,
+                        getString(R.string.loading));
+                startActivity(intent);
+            };
 
             if (pager != null && pager.getAdapter() == null) {
-                pager.setAdapter(new ScheduleGridPagerAdapter(gridChannels, MainActivity.this, getFragmentManager()));
+                adapter = new ScheduleGridPagerAdapter(gridChannels,
+                        listener,
+                        MainActivity.this,
+                        getFragmentManager());
+                pager.setAdapter(adapter);
+            } else if (adapter != null) {
+                adapter.loadRows(gridChannels, listener);
+                adapter.notifyDataSetChanged();
+                pager.setCurrentItem(lastIndex, 0, true);
             } else {
                 Log.e("TV", "Error startMainScreen!");
             }
@@ -84,7 +106,12 @@ public class MainActivity extends Activity {
             Log.d("TV", "dataMap:" + dataMap);
 
             if (dataMap.containsKey(TVCommons.KEY_SCHEDULE)) {
-                gridChannels = new ArrayList<>();
+                lastIndex = dataMap.getInt(TVCommons.KEY_CURRENT_INDEX);
+
+                if (lastIndex < 1) {
+                    gridChannels = new ArrayList<>();
+                    DrawableCache.getInstance().evictAll();
+                }
 
                 List<DataMap> gridChannelsDataMap = dataMap.getDataMapArrayList(TVCommons.KEY_SCHEDULE);
 
@@ -131,9 +158,9 @@ public class MainActivity extends Activity {
                     new LoadImage(keyValue).execute(image, teleportClient.getGoogleApiClient());
                 }
             } else if (dataMap.containsKey(TVCommons.KEY_IMAGE_COUNT)) {
-                int max = dataMap.getInt(TVCommons.KEY_IMAGE_COUNT);
-                Log.d("TV", "KEY_IMAGE_COUNT:" + max);
-                DrawableCache.init(max);
+                int count = dataMap.getInt(TVCommons.KEY_IMAGE_COUNT);
+                Log.d("TV", "KEY_IMAGE_COUNT:" + count);
+                DrawableCache.getInstance().resize(DrawableCache.getInstance().size() + count);
             }
 
         }
@@ -161,6 +188,10 @@ public class MainActivity extends Activity {
     }
 
     private void putInCache(String key, Drawable drawable) {
+        Log.d("TV", "put:" + key);
+        Log.d("TV", "DrawableCache.getInstance().size():" + DrawableCache.getInstance().size());
+        Log.d("TV", "DrawableCache.getInstance().maxSize():" + DrawableCache.getInstance().maxSize());
+
         DrawableCache.getInstance().put(key, drawable);
         if (DrawableCache.getInstance().size() == DrawableCache.getInstance().maxSize()) {
             startMainScreen();

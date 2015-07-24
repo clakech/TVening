@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">TVening</string>
     <string name="app_hello">What\'s on TV?</string>
+    <string name="next">More channels</string>
+    <string name="loading">Loading</string>
 
     <dimen name="card_content_padding_rect_left">4dp</dimen>
     <dimen name="card_content_padding_rect_right">4dp</dimen>

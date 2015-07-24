@@ -45,22 +45,25 @@ public class ProgramGridPagerAdapter extends FragmentGridPagerAdapter {
             e.printStackTrace();
         }
         String dislayHeure = heure != null ? simpleDateFormatWrite.format(heure) : "";
-        StringBuffer descriptions = new StringBuffer(airing.Title);
+        StringBuffer descriptions = new StringBuffer(airing.Title != null ? airing.Title : "");
         if (airing.EpisodeTitle != null) {
-            descriptions.append("\n");
-            descriptions.append(airing.EpisodeTitle);
+            descriptions
+                    .append("\n")
+                    .append(airing.EpisodeTitle);
         }
         if (airing.CopyText != null) {
-            descriptions.append("\n\n");
-            descriptions.append(airing.CopyText);
+            descriptions
+                    .append("\n\n")
+                    .append(airing.CopyText);
         }
         if (airing.Duration > 0) {
-            descriptions.append("\n\n");
-            descriptions.append(airing.Duration);
-            descriptions.append(" min.");
+            descriptions
+                    .append("\n\n")
+                    .append(airing.Duration)
+                    .append(" min.");
         }
-        MyCardFragment fragment =
-                MyCardFragment.create(dislayHeure, descriptions.toString(), imgUrl);
+        AiringFragment fragment =
+                AiringFragment.create(dislayHeure, descriptions.toString(), imgUrl);
 
         // Add some extra bottom margin to leave room for the page indicator
         fragment.setCardMarginTop(

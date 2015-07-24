@@ -8,7 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-public class MyCardFragment extends CardFragment {
+public class AiringFragment extends CardFragment {
 
     private View fragmentView;
     private View.OnClickListener listener;
@@ -52,8 +52,8 @@ public class MyCardFragment extends CardFragment {
         this.listener = listener;
     }
 
-    public static MyCardFragment create(String title, String text, String imgUrl) {
-        MyCardFragment fragment = new MyCardFragment();
+    public static AiringFragment create(String title, String text, String imgUrl) {
+        AiringFragment fragment = new AiringFragment();
         Bundle args = new Bundle();
         if (title != null) {
             args.putString("CardFragment_title", title);

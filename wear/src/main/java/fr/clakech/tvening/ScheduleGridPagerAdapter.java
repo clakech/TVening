@@ -22,17 +22,19 @@ public class ScheduleGridPagerAdapter extends FragmentGridPagerAdapter {
     private final Context mContext;
     private List<Row> mRows;
 
-    public ScheduleGridPagerAdapter(List<GridChannel> gridChannels, Context ctx, FragmentManager fm) {
+    public ScheduleGridPagerAdapter(List<GridChannel> gridChannels, ActionFragment.Listener nextAction, Context ctx, FragmentManager fm) {
         super(fm);
         mContext = ctx;
+        loadRows(gridChannels, nextAction);
+    }
 
+    public void loadRows(List<GridChannel> gridChannels, ActionFragment.Listener nextAction) {
         mRows = new ArrayList<>();
-
         for (GridChannel gridChannel : gridChannels) {
             if (gridChannel != null && gridChannel.Channel != null) {
                 List<Fragment> fragments = new ArrayList<>();
                 if (gridChannel.Airings != null) {
-                    for (fr.clakech.tvening.Airing airing : gridChannel.Airings) {
+                    for (Airing airing : gridChannel.Airings) {
                         String imgUrl = null;
                         if (gridChannel.ChannelImages != null && gridChannel.ChannelImages.length > 0) {
                             imgUrl = gridChannel.ChannelImages[0].ImageUrl;
@@ -45,6 +47,8 @@ public class ScheduleGridPagerAdapter extends FragmentGridPagerAdapter {
                 mRows.add(new Row(gridChannel, f));
             }
         }
+
+        mRows.add(new Row(null, ActionFragment.create(R.drawable.ic_forward_white_48dp, R.string.next, nextAction)));
     }
 
     private Fragment cardFragment(final Airing airing, final String imgUrl) {
@@ -60,18 +64,20 @@ public class ScheduleGridPagerAdapter extends FragmentGridPagerAdapter {
             e.printStackTrace();
         }
         String dislayHeure = heure != null ? simpleDateFormatWrite.format(heure) : "";
-        StringBuffer descriptions = new StringBuffer(airing.Title);
+        StringBuffer descriptions = new StringBuffer(airing.Title != null ? airing.Title : "");
         if (airing.EpisodeTitle != null) {
-            descriptions.append("\n");
-            descriptions.append(airing.EpisodeTitle);
+            descriptions
+                    .append("\n")
+                    .append(airing.EpisodeTitle);
         }
         if (airing.Duration > 0) {
-            descriptions.append("\n\n");
-            descriptions.append(airing.Duration);
-            descriptions.append(" min.");
+            descriptions
+                    .append("\n\n")
+                    .append(airing.Duration)
+                    .append(" min.");
         }
-        MyCardFragment fragment =
-                MyCardFragment.create(dislayHeure, descriptions.toString(), imgUrl);
+        AiringFragment fragment =
+                AiringFragment.create(dislayHeure, descriptions.toString(), imgUrl);
         fragment.setOnClickListener(v -> {
             Intent program = new Intent(mContext, ProgramActivity.class);
             program.putExtra("airing", airing);
@@ -125,7 +131,9 @@ public class ScheduleGridPagerAdapter extends FragmentGridPagerAdapter {
     @Override
     public Drawable getBackgroundForPage(final int row, final int column) {
         String url = null;
-        if (mRows.get(row).gridChannel.Airings != null && mRows.get(row).gridChannel.Airings.length > 0) {
+        if (mRows.get(row).gridChannel != null
+                && mRows.get(row).gridChannel.Airings != null
+                && mRows.get(row).gridChannel.Airings.length > 0) {
             url = mRows.get(row).gridChannel.Airings[column].ImageUrl;
         }
         if (url != null)
