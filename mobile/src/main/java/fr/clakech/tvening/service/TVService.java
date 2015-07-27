@@ -113,7 +113,7 @@ public class TVService extends TeleportService {
 
                                 // pfff, to avoid API limitation of 5 hits / sec
                                 try {
-                                    Thread.sleep(300);
+                                    Thread.sleep(200);
                                 } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
